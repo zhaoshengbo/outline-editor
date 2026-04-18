@@ -12,6 +12,11 @@ const props = defineProps<{
   readonly?: boolean
 }>()
 
+const emit = defineEmits<{
+  'node-click': [node: OutlineNode]
+  'update:initialData': [data: OutlineNodeData[]]
+}>()
+
 const defaultData: OutlineNode[] = [
   {
     id: 'n1',
@@ -168,9 +173,17 @@ const nodes = ref<OutlineNode[]>(
   props.initialData ? fromOutlineData(props.initialData) : defaultData
 )
 
+let suppressPropWatch = false
+
 watch(() => props.initialData, (data) => {
+  if (suppressPropWatch) { suppressPropWatch = false; return }
   if (data) nodes.value = fromOutlineData(data)
 })
+
+watch(nodes, (newNodes) => {
+  suppressPropWatch = true
+  emit('update:initialData', toOutlineData(newNodes))
+}, { deep: true })
 
 // --- Public API ---
 function initData(data: OutlineNodeData[]) {
@@ -194,7 +207,7 @@ function getReferences(nodeId: string): ReferenceItem[] | undefined {
   return node?.references
 }
 
-defineExpose({ initData, getData, setReferences, clearReferences, getReferences })
+defineExpose({ initData, getData, setReferences, clearReferences, getReferences, addReference, removeReference })
 
 const editingId = ref<string | null>(null)
 const contextMenu = ref<ContextMenuState | null>(null)
@@ -205,13 +218,19 @@ const dragMouseY = ref(0)
 
 // --- Event handlers ---
 
-function handleEdit(id: string) {
+function handleEdit(id: string, rowRect?: { x: number; y: number }) {
   editingId.value = id
+  if (rowRect) {
+    contextMenu.value = { nodeId: id, x: rowRect.x, y: rowRect.y, aboveTarget: true }
+    const clickedNode = findNode(nodes.value, id)
+    if (clickedNode) emit('node-click', clickedNode)
+  }
 }
 
 function handleEditDone(id: string, newTitle: string) {
   if (editingId.value === id) {
     editingId.value = null
+    contextMenu.value = null
     if (newTitle.trim()) {
       nodes.value = updateNode(nodes.value, id, { title: newTitle })
     }
@@ -221,10 +240,7 @@ function handleEditDone(id: string, newTitle: string) {
 function handleDelete(id: string) {
   nodes.value = deleteNode(nodes.value, id)
   contextMenu.value = null
-}
-
-function handleContextMenu(id: string, x: number, y: number) {
-  contextMenu.value = { nodeId: id, x, y }
+  editingId.value = null
 }
 
 function handleCloseContextMenu() {
@@ -271,6 +287,22 @@ function handleToggleReference(id: string) {
   const node = findNode(nodes.value, id)
   if (!node) return
   nodes.value = updateNode(nodes.value, id, { referenceExpanded: !node.referenceExpanded })
+}
+
+function addReference(nodeId: string, item: ReferenceItem) {
+  const node = findNode(nodes.value, nodeId)
+  if (!node) return
+  const current = node.references ?? []
+  nodes.value = updateNode(nodes.value, nodeId, { references: [...current, item] })
+}
+
+function removeReference(nodeId: string, index: number) {
+  const node = findNode(nodes.value, nodeId)
+  if (!node || !node.references) return
+  const updated = node.references.filter((_, i) => i !== index)
+  nodes.value = updateNode(nodes.value, nodeId, {
+    references: updated.length > 0 ? updated : undefined
+  })
 }
 
 // --- Drag & Drop ---
@@ -381,14 +413,15 @@ onUnmounted(() => {
 provide('editingId', editingId)
 provide('dragState', dragState)
 provide('dragMeta', dragMeta)
-provide('onEdit', handleEdit)
+provide('onEdit', handleEdit as (id: string, rowRect?: { x: number; y: number }) => void)
 provide('onEditDone', handleEditDone)
 provide('onDelete', handleDelete)
-provide('onContextMenu', handleContextMenu)
 provide('onDragStart', handleDragStart)
 provide('onDragOver', handleDragOver)
 provide('onDragEnd', handleDragEnd)
 provide('onToggleReference', handleToggleReference)
+provide('onAddReference', addReference)
+provide('onRemoveReference', removeReference)
 provide('nodes', nodes)
 
 function getNumberingIndex(list: OutlineNode[], idx: number): number {
@@ -401,7 +434,7 @@ function getNumberingIndex(list: OutlineNode[], idx: number): number {
 </script>
 
 <template>
-  <div class="outline-editor" @contextmenu.prevent>
+  <div class="outline-editor">
     <div class="outline-editor__header">
       <h1>大纲编辑器</h1>
     </div>
@@ -425,7 +458,6 @@ function getNumberingIndex(list: OutlineNode[], idx: number): number {
       @duplicate="handleDuplicate"
       @move-up="handleMoveUp"
       @move-down="handleMoveDown"
-      @delete="handleDelete"
     />
 
     <DragPreview

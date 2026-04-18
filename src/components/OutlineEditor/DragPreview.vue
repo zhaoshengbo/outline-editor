@@ -56,7 +56,6 @@ const previewItems = computed(() => {
     <!-- Header with handle and close icon -->
     <div class="drag-preview__header">
       <span class="drag-preview__handle">⠿</span>
-      <span class="drag-preview__close">✕</span>
     </div>
 
     <!-- Content -->

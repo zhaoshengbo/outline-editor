@@ -1,7 +1,8 @@
 // --- Internal model ---
 
 export interface ReferenceItem {
-  type: 'knowledge' | 'upload' | 'recommend'
+  source_type: 'knowledge' | 'upload' | 'recommend'
+  source_id?: string
   label: string
   name: string
 }
@@ -33,6 +34,7 @@ export interface ContextMenuState {
   nodeId: string
   x: number
   y: number
+  aboveTarget?: boolean
 }
 
 // --- External data protocol ---

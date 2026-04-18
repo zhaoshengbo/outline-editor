@@ -1,17 +1,22 @@
 <script setup lang="ts">
 import type { ReferenceItem } from '../../types'
+import { Close } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   nodeId: string
   depth: number
   references?: ReferenceItem[]
 }>()
+
+const emit = defineEmits<{
+  remove: [index: number]
+}>()
 </script>
 
 <template>
   <div
     class="ref-panel"
-    :style="{ marginLeft: `${(depth - 1) * 40 + 16}px`, marginRight: '16px' }"
+    :style="{ marginLeft: `${(depth - 1) * 40 + 34}px`, marginRight: '36px' }"
   >
     <!-- Panel header -->
     <div class="ref-panel__header">
@@ -29,9 +34,12 @@ const props = defineProps<{
         >
           <span
             class="ref-panel__tag"
-            :class="`ref-panel__tag--${item.type}`"
+            :class="`ref-panel__tag--${item.source_type}`"
           >{{ item.label }}</span>
           <span class="ref-panel__filename">{{ item.name }}</span>
+          <button class="ref-panel__remove" @click="emit('remove', i)">
+            <component :is="Close" class="ref-panel__remove-icon" />
+          </button>
         </div>
       </template>
       <div v-else class="ref-panel__empty">暂无内容参考</div>
@@ -41,10 +49,11 @@ const props = defineProps<{
 
 <style>
 .ref-panel {
-  background: #f8f9fb;
-  border: 1px solid #eaedf0;
-  border-radius: 12px;
-  margin-top: 6px;
+  background: #f5f6f8;
+  border: 1px solid #f5f6f8;
+  border-top: none;
+  border-radius: 0;
+  margin-top: 0;
   margin-bottom: 12px;
   padding: 20px 24px 18px;
 }
@@ -68,24 +77,6 @@ const props = defineProps<{
   color: #333;
 }
 
-/* Category tags row */
-.ref-panel__categories {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.ref-panel__category-text {
-  font-size: 14px;
-  color: #333;
-  cursor: pointer;
-}
-
-.ref-panel__category-text:hover {
-  color: #e8792b;
-}
-
 /* Body */
 .ref-panel__body {
   display: flex;
@@ -101,7 +92,8 @@ const props = defineProps<{
   padding: 12px 16px;
   background: #fff;
   border: 1px solid #eaedf0;
-  border-radius: 10px;
+  border-radius: 0;
+  justify-content: space-between;
 }
 
 /* Tags */
@@ -146,5 +138,32 @@ const props = defineProps<{
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Remove button */
+.ref-panel__remove {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #ccc;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: color 0.2s, background 0.2s;
+}
+
+.ref-panel__remove:hover {
+  color: #ff4d4f;
+  background: #fff1f0;
+}
+
+.ref-panel__remove-icon {
+  width: 13px;
+  height: 13px;
 }
 </style>

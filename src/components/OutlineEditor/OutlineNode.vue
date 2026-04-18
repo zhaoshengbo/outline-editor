@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, inject, nextTick, watch } from 'vue'
 import type { Ref } from 'vue'
-import type { OutlineNode, DragState, DragMeta } from '../../types'
+import type { OutlineNode, DragState, DragMeta, ReferenceItem } from '../../types'
 import { getPrefix } from '../../utils/numbering'
 import { isLeaf } from '../../utils/treeUtils'
 import ContentReferencePanel from './ContentReferencePanel.vue'
-import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
+import { ArrowUp, ArrowDown, CaretRight } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   node: OutlineNode
@@ -16,18 +16,20 @@ const props = defineProps<{
 const editingId = inject<Ref<string | null>>('editingId')!
 const dragState = inject<Ref<DragState | null>>('dragState')!
 const dragMeta = inject<Ref<DragMeta | null>>('dragMeta')!
-const onEdit = inject<(id: string) => void>('onEdit')!
+const onEdit = inject<(id: string, rowRect?: { x: number; y: number }) => void>('onEdit')!
 const onEditDone = inject<(id: string, title: string) => void>('onEditDone')!
 const onDelete = inject<(id: string) => void>('onDelete')!
-const onContextMenu = inject<(id: string, x: number, y: number) => void>('onContextMenu')!
 const onDragStart = inject<(id: string, x: number, y: number) => void>('onDragStart')!
 const onDragOver = inject<(targetId: string, position: 'before' | 'after' | 'inside') => void>('onDragOver')!
 const onDragEnd = inject<() => void>('onDragEnd')!
 const onToggleReference = inject<(id: string) => void>('onToggleReference')!
+const onAddReference = inject<(nodeId: string, item: ReferenceItem) => void>('onAddReference')!
+const onRemoveReference = inject<(nodeId: string, index: number) => void>('onRemoveReference')!
 
 const hovered = ref(false)
 const editInput = ref<HTMLInputElement | null>(null)
 const editText = ref('')
+const rowEl = ref<HTMLElement | null>(null)
 
 const isEditing = computed(() => editingId.value === props.node.id)
 const isDragging = computed(() => dragState.value?.draggingId === props.node.id)
@@ -53,7 +55,13 @@ watch(isEditing, (val) => {
 })
 
 function handleTitleClick() {
-  onEdit(props.node.id)
+  const rect = rowEl.value?.getBoundingClientRect()
+  if (rect) {
+    const paddingLeft = (props.depth - 1) * 40 + 16
+    onEdit(props.node.id, { x: rect.left + paddingLeft, y: rect.top })
+  } else {
+    onEdit(props.node.id)
+  }
 }
 
 function handleEditKeydown(e: KeyboardEvent) {
@@ -64,12 +72,6 @@ function handleEditKeydown(e: KeyboardEvent) {
 
 function handleEditBlur() {
   onEditDone(props.node.id, editText.value)
-}
-
-function handleRightClick(e: MouseEvent) {
-  e.preventDefault()
-  e.stopPropagation()
-  onContextMenu(props.node.id, e.clientX, e.clientY)
 }
 
 // --- Drag ---
@@ -142,19 +144,19 @@ const showDropIndicator = computed(() => {
       class="onode__drop-indicator onode__drop-indicator--before"
       :style="{ paddingLeft: `${(depth - 1) * 40 + 16}px` }"
     >
-      <span class="onode__drop-arrow">▸</span>
+      <component :is="CaretRight" class="onode__drop-arrow" />
       <div class="onode__drop-line"></div>
     </div>
 
     <!-- Main row -->
     <div
+      ref="rowEl"
       class="onode__row"
-      :class="{ 'onode__row--hovered': hovered && !isDragging }"
-      :style="{ paddingLeft: `${(depth - 1) * 40 + 16}px` }"
+      :class="{ 'onode__row--hovered': (hovered && !isDragging) || !!node.referenceExpanded }"
+      :style="{ paddingLeft: `${(depth - 1) * 40 + 16}px`, '--row-indent': `${(depth - 1) * 40 + 34}px` }"
       draggable="true"
       @mouseenter="hovered = true"
       @mouseleave="hovered = false"
-      @contextmenu="handleRightClick"
       @dragstart="handleDragStart"
       @dragover="handleDragOverEvent"
       @drop="handleDrop"
@@ -194,7 +196,7 @@ const showDropIndicator = computed(() => {
       <div class="onode__actions">
         <!-- Content reference toggle (leaf only) -->
         <span
-          v-if="nodeIsLeaf"
+          v-if="nodeIsLeaf && node.references && node.references.length > 0"
           class="onode__ref-toggle"
           :class="{ 'onode__ref-toggle--active': node.referenceExpanded }"
           @click.stop="onToggleReference(node.id)"
@@ -215,7 +217,7 @@ const showDropIndicator = computed(() => {
       class="onode__drop-indicator onode__drop-indicator--inside"
       :style="{ paddingLeft: `${depth * 40 + 16}px` }"
     >
-      <span class="onode__drop-arrow">▸</span>
+      <component :is="CaretRight" class="onode__drop-arrow" />
       <div class="onode__drop-line"></div>
     </div>
 
@@ -225,6 +227,7 @@ const showDropIndicator = computed(() => {
       :node-id="node.id"
       :depth="depth"
       :references="node.references"
+      @remove="onRemoveReference(node.id, $event)"
     />
 
     <!-- Children -->
@@ -244,7 +247,7 @@ const showDropIndicator = computed(() => {
       class="onode__drop-indicator onode__drop-indicator--after"
       :style="{ paddingLeft: `${(depth - 1) * 40 + 16}px` }"
     >
-      <span class="onode__drop-arrow">▸</span>
+      <component :is="CaretRight" class="onode__drop-arrow" />
       <div class="onode__drop-line"></div>
     </div>
   </div>
@@ -273,10 +276,19 @@ export default { name: 'OutlineNodeVue' }
   position: relative;
   border-radius: 6px;
   transition: background-color 0.15s;
+  isolation: isolate;
 }
 
-.onode__row--hovered {
+.onode__row--hovered::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  left: var(--row-indent, 0px);
+  right: 36px;
   background-color: #f5f6f8;
+  border-radius: 0;
+  z-index: -1;
+  transition: background-color 0.15s;
 }
 
 /* --- Drag handle (in flow, before prefix) --- */
@@ -415,8 +427,8 @@ export default { name: 'OutlineNodeVue' }
 
 .onode__drop-arrow {
   color: #4096ff;
-  font-size: 14px;
-  line-height: 1;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 

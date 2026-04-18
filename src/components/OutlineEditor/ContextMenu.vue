@@ -3,6 +3,7 @@ import { computed, inject } from 'vue'
 import type { Ref } from 'vue'
 import type { OutlineNode, ContextMenuState } from '../../types'
 import { findNode, isLeaf, getDepth, findParent } from '../../utils/treeUtils'
+import { EditPen, List, Plus, DocumentAdd, CopyDocument, Top, Bottom } from '@element-plus/icons-vue'
 
 const props = defineProps<{
   state: ContextMenuState
@@ -16,7 +17,6 @@ const emit = defineEmits<{
   duplicate: [id: string]
   'move-up': [id: string]
   'move-down': [id: string]
-  delete: [id: string]
 }>()
 
 const nodes = inject<Ref<OutlineNode[]>>('nodes')!
@@ -55,9 +55,14 @@ function handleClick(e: MouseEvent) {
 <template>
   <div
     class="context-menu"
-    :style="{ left: `${state.x}px`, top: `${state.y}px` }"
+    :style="{
+      left: `${state.x}px`,
+      top: `${state.y}px`,
+      transform: state.aboveTarget ? 'translateY(-100%) translateY(-6px)' : 'none'
+    }"
     @click="handleClick"
     @contextmenu.prevent.stop
+    @mousedown.prevent
   >
     <!-- Toggle paragraph -->
     <button
@@ -65,32 +70,32 @@ function handleClick(e: MouseEvent) {
       class="context-menu__btn"
       :disabled="!nodeIsLeaf"
       @click="emit('toggle-paragraph', state.nodeId)"
-    ><span class="context-menu__icon">¶</span>设为段落内容</button>
+    ><component :is="EditPen" class="context-menu__icon" />设为段落内容</button>
     <button
       v-else
       class="context-menu__btn"
       @click="emit('toggle-paragraph', state.nodeId)"
-    ><span class="context-menu__icon">¶</span>设为段落标题</button>
+    ><component :is="List" class="context-menu__icon" />设为段落标题</button>
 
     <span class="context-menu__divider"></span>
 
     <button
       class="context-menu__btn"
       @click="emit('add-sibling', state.nodeId)"
-    ><span class="context-menu__icon">⊕</span>添加同级</button>
+    ><component :is="Plus" class="context-menu__icon" />添加同级</button>
 
     <button
       class="context-menu__btn"
       :disabled="!canAddChild"
       @click="emit('add-child', state.nodeId)"
-    ><span class="context-menu__icon">⊕</span>添加下级</button>
+    ><component :is="DocumentAdd" class="context-menu__icon" />添加下级</button>
 
     <span class="context-menu__divider"></span>
 
     <button
       class="context-menu__btn"
       @click="emit('duplicate', state.nodeId)"
-    ><span class="context-menu__icon">⊞</span>复制</button>
+    ><component :is="CopyDocument" class="context-menu__icon" />复制</button>
 
     <span class="context-menu__divider"></span>
 
@@ -98,20 +103,13 @@ function handleClick(e: MouseEvent) {
       class="context-menu__btn"
       :disabled="!canMoveUp"
       @click="emit('move-up', state.nodeId)"
-    ><span class="context-menu__icon">↑</span>上移</button>
+    ><component :is="Top" class="context-menu__icon" />上移</button>
 
     <button
       class="context-menu__btn"
       :disabled="!canMoveDown"
       @click="emit('move-down', state.nodeId)"
-    ><span class="context-menu__icon">↓</span>下移</button>
-
-    <span class="context-menu__divider"></span>
-
-    <button
-      class="context-menu__btn context-menu__btn--danger"
-      @click="emit('delete', state.nodeId)"
-    ><span class="context-menu__icon">✕</span>删除</button>
+    ><component :is="Bottom" class="context-menu__icon" />下移</button>
   </div>
 </template>
 
@@ -123,19 +121,19 @@ function handleClick(e: MouseEvent) {
   align-items: center;
   background: #fff;
   border: 1px solid #e5e5e5;
-  border-radius: 10px;
+  border-radius: 6px;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1), 0 2px 8px rgba(0, 0, 0, 0.06);
-  padding: 6px 8px;
+  padding: 3px 6px;
   gap: 2px;
 }
 
 .context-menu__btn {
   border: none;
   background: none;
-  font-size: 14px;
+  font-size: 13px;
   color: #333;
   cursor: pointer;
-  padding: 7px 12px;
+  padding: 4px 10px;
   border-radius: 6px;
   white-space: nowrap;
   display: flex;
@@ -160,7 +158,8 @@ function handleClick(e: MouseEvent) {
 }
 
 .context-menu__icon {
-  font-size: 14px;
+  width: 14px;
+  height: 14px;
   opacity: 0.5;
   flex-shrink: 0;
 }
@@ -171,7 +170,7 @@ function handleClick(e: MouseEvent) {
 
 .context-menu__divider {
   width: 1px;
-  height: 22px;
+  height: 14px;
   background: #e8e8e8;
   flex-shrink: 0;
   margin: 0 2px;
