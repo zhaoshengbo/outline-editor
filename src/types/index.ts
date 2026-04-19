@@ -12,8 +12,10 @@ export interface OutlineNode {
   title: string
   children: OutlineNode[]
   isParagraph: boolean
+  number?: string
   referenceExpanded?: boolean
   references?: ReferenceItem[]
+  requirements?: string
 }
 
 export type DropPosition = 'before' | 'after' | 'inside'
@@ -45,6 +47,8 @@ export interface OutlineNodeData {
   title: string
   visible: boolean
   isParagraph?: boolean
+  number?: string
   references?: ReferenceItem[]
+  requirements?: string
   children: OutlineNodeData[]
 }

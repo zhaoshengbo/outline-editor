@@ -389,6 +389,7 @@ export default { name: 'OutlineNodeVue' }
   margin-left: 2px;
 }
 
+
 /* --- Delete button --- */
 .onode__delete {
   color: #ccc;

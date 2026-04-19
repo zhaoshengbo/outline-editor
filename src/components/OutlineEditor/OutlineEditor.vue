@@ -3,6 +3,7 @@ import { ref, provide, onMounted, onUnmounted, watch } from 'vue'
 import type { OutlineNode, OutlineNodeData, ReferenceItem, DragState, DragMeta, ContextMenuState } from '../../types'
 import { createNode, updateNode, deleteNode, insertSibling, insertAsChild, duplicateNode, moveUp, moveDown, moveNode, findNode, getSubtreeMaxDepth } from '../../utils/treeUtils'
 import { fromOutlineData, toOutlineData } from '../../utils/dataConverter'
+import { computeNumbers } from '../../utils/numbering'
 import OutlineNodeVue from './OutlineNode.vue'
 import ContextMenu from './ContextMenu.vue'
 import DragPreview from './DragPreview.vue'
@@ -170,14 +171,18 @@ const defaultData: OutlineNode[] = [
 ]
 
 const nodes = ref<OutlineNode[]>(
-  props.initialData ? fromOutlineData(props.initialData) : defaultData
+  computeNumbers(props.initialData ? fromOutlineData(props.initialData) : defaultData)
 )
+
+function setNodes(newNodes: OutlineNode[]) {
+  nodes.value = computeNumbers(newNodes)
+}
 
 let suppressPropWatch = false
 
 watch(() => props.initialData, (data) => {
   if (suppressPropWatch) { suppressPropWatch = false; return }
-  if (data) nodes.value = fromOutlineData(data)
+  if (data) setNodes(fromOutlineData(data))
 })
 
 watch(nodes, (newNodes) => {
@@ -187,7 +192,7 @@ watch(nodes, (newNodes) => {
 
 // --- Public API ---
 function initData(data: OutlineNodeData[]) {
-  nodes.value = fromOutlineData(data)
+  setNodes(fromOutlineData(data))
 }
 
 function getData(): OutlineNodeData[] {
@@ -195,11 +200,11 @@ function getData(): OutlineNodeData[] {
 }
 
 function setReferences(nodeId: string, refs: ReferenceItem[]) {
-  nodes.value = updateNode(nodes.value, nodeId, { references: refs })
+  setNodes(updateNode(nodes.value, nodeId, { references: refs }))
 }
 
 function clearReferences(nodeId: string) {
-  nodes.value = updateNode(nodes.value, nodeId, { references: undefined })
+  setNodes(updateNode(nodes.value, nodeId, { references: undefined }))
 }
 
 function getReferences(nodeId: string): ReferenceItem[] | undefined {
@@ -207,8 +212,9 @@ function getReferences(nodeId: string): ReferenceItem[] | undefined {
   return node?.references
 }
 
-defineExpose({ initData, getData, setReferences, clearReferences, getReferences, addReference, removeReference })
+defineExpose({ initData, getData, setReferences, clearReferences, getReferences, addReference, removeReference, setRequirements, clearRequirements })
 
+const editorEl = ref<HTMLElement | null>(null)
 const editingId = ref<string | null>(null)
 const contextMenu = ref<ContextMenuState | null>(null)
 const dragState = ref<DragState | null>(null)
@@ -221,7 +227,10 @@ const dragMouseY = ref(0)
 function handleEdit(id: string, rowRect?: { x: number; y: number }) {
   editingId.value = id
   if (rowRect) {
-    contextMenu.value = { nodeId: id, x: rowRect.x, y: rowRect.y, aboveTarget: true }
+    const editorRect = editorEl.value?.getBoundingClientRect()
+    const x = editorRect ? rowRect.x - editorRect.left : rowRect.x
+    const y = editorRect ? rowRect.y - editorRect.top : rowRect.y
+    contextMenu.value = { nodeId: id, x, y, aboveTarget: true }
     const clickedNode = findNode(nodes.value, id)
     if (clickedNode) emit('node-click', clickedNode)
   }
@@ -232,13 +241,13 @@ function handleEditDone(id: string, newTitle: string) {
     editingId.value = null
     contextMenu.value = null
     if (newTitle.trim()) {
-      nodes.value = updateNode(nodes.value, id, { title: newTitle })
+      setNodes(updateNode(nodes.value, id, { title: newTitle }))
     }
   }
 }
 
 function handleDelete(id: string) {
-  nodes.value = deleteNode(nodes.value, id)
+  setNodes(deleteNode(nodes.value, id))
   contextMenu.value = null
   editingId.value = null
 }
@@ -250,59 +259,67 @@ function handleCloseContextMenu() {
 function handleToggleParagraph(id: string) {
   const node = findNode(nodes.value, id)
   if (!node) return
-  nodes.value = updateNode(nodes.value, id, { isParagraph: !node.isParagraph })
+  setNodes(updateNode(nodes.value, id, { isParagraph: !node.isParagraph }))
   contextMenu.value = null
 }
 
 function handleAddSibling(id: string) {
   const newNode = createNode()
-  nodes.value = insertSibling(nodes.value, id, newNode)
+  setNodes(insertSibling(nodes.value, id, newNode))
   editingId.value = newNode.id
   contextMenu.value = null
 }
 
 function handleAddChild(id: string) {
   const newNode = createNode()
-  nodes.value = insertAsChild(nodes.value, id, newNode)
+  setNodes(insertAsChild(nodes.value, id, newNode))
   editingId.value = newNode.id
   contextMenu.value = null
 }
 
 function handleDuplicate(id: string) {
-  nodes.value = duplicateNode(nodes.value, id)
+  setNodes(duplicateNode(nodes.value, id))
   contextMenu.value = null
 }
 
 function handleMoveUp(id: string) {
-  nodes.value = moveUp(nodes.value, id)
+  setNodes(moveUp(nodes.value, id))
   contextMenu.value = null
 }
 
 function handleMoveDown(id: string) {
-  nodes.value = moveDown(nodes.value, id)
+  setNodes(moveDown(nodes.value, id))
   contextMenu.value = null
 }
 
 function handleToggleReference(id: string) {
   const node = findNode(nodes.value, id)
   if (!node) return
-  nodes.value = updateNode(nodes.value, id, { referenceExpanded: !node.referenceExpanded })
+  setNodes(updateNode(nodes.value, id, { referenceExpanded: !node.referenceExpanded }))
 }
 
 function addReference(nodeId: string, item: ReferenceItem) {
   const node = findNode(nodes.value, nodeId)
   if (!node) return
   const current = node.references ?? []
-  nodes.value = updateNode(nodes.value, nodeId, { references: [...current, item] })
+  setNodes(updateNode(nodes.value, nodeId, { references: [...current, item] }))
 }
 
 function removeReference(nodeId: string, index: number) {
   const node = findNode(nodes.value, nodeId)
   if (!node || !node.references) return
   const updated = node.references.filter((_, i) => i !== index)
-  nodes.value = updateNode(nodes.value, nodeId, {
+  setNodes(updateNode(nodes.value, nodeId, {
     references: updated.length > 0 ? updated : undefined
-  })
+  }))
+}
+
+function setRequirements(nodeId: string, text: string) {
+  setNodes(updateNode(nodes.value, nodeId, { requirements: text || undefined }))
+}
+
+function clearRequirements(nodeId: string) {
+  setNodes(updateNode(nodes.value, nodeId, { requirements: undefined }))
 }
 
 // --- Drag & Drop ---
@@ -366,12 +383,12 @@ function handleDragOver(targetId: string, position: 'before' | 'after' | 'inside
 
 function handleDragEnd() {
   if (dragState.value?.overNodeId && dragState.value.dropPosition) {
-    nodes.value = moveNode(
+    setNodes(moveNode(
       nodes.value,
       dragState.value.draggingId,
       dragState.value.overNodeId,
       dragState.value.dropPosition
-    )
+    ))
   }
   dragState.value = null
   dragMeta.value = null
@@ -422,6 +439,7 @@ provide('onDragEnd', handleDragEnd)
 provide('onToggleReference', handleToggleReference)
 provide('onAddReference', addReference)
 provide('onRemoveReference', removeReference)
+
 provide('nodes', nodes)
 
 function getNumberingIndex(list: OutlineNode[], idx: number): number {
@@ -434,7 +452,7 @@ function getNumberingIndex(list: OutlineNode[], idx: number): number {
 </script>
 
 <template>
-  <div class="outline-editor">
+  <div ref="editorEl" class="outline-editor">
     <div class="outline-editor__header">
       <h1>大纲编辑器</h1>
     </div>
@@ -490,6 +508,7 @@ body {
   background: #fff;
   min-height: 100vh;
   padding: 32px 48px 64px;
+  position: relative;
 }
 
 .outline-editor__header {

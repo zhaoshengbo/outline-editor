@@ -7,55 +7,55 @@ const editorRef = ref<InstanceType<typeof OutlineEditor> | null>(null)
 
 const demoData = ref<OutlineNodeData[]>([
   {
-    id: 'n1', level: 1, title: '基本情况', visible: true, children: []
+    id: 'n1', level: 1, title: '基本情况', visible: true, number: '一、', children: []
   },
   {
-    id: 'n2', level: 1, title: '主要工作及成效', visible: true, children: [
+    id: 'n2', level: 1, title: '主要工作及成效', visible: true, number: '二、', children: [
       {
-        id: 'n2_1', level: 2, title: '工作进展', visible: true, children: [
+        id: 'n2_1', level: 2, title: '工作进展', visible: true, number: '（一）', children: [
           {
-            id: 'n2_1_1', level: 3, title: '重点项目推进情况', visible: true, children: [
-              { id: 'n2_1_1_1', level: 4, title: '项目立项与审批', visible: true, children: [], references: [
+            id: 'n2_1_1', level: 3, title: '重点项目推进情况', visible: true, number: '1.', children: [
+              { id: 'n2_1_1_1', level: 4, title: '项目立项与审批', visible: true, number: '（1）', children: [], references: [
                 { source_type: 'knowledge', label: '知识库', name: '全部' },
                 { source_type: 'upload', label: '本地上传', name: '关于赵二狗同志的处理决定' },
                 { source_type: 'recommend', label: '智能推荐', name: '关于北京市2023年国民经济和社会发展计划执行情况与20...' },
                 { source_type: 'recommend', label: '智能推荐', name: '鞍山市"四产融合""十四五"规划' },
               ] },
-              { id: 'n2_1_1_2', level: 4, title: '项目实施进度', visible: true, children: [] },
+              { id: 'n2_1_1_2', level: 4, title: '项目实施进度', visible: true, number: '（2）', children: [] },
             ]
           },
-          { id: 'n2_1_2', level: 3, title: '日常工作开展情况', visible: true, children: [] },
+          { id: 'n2_1_2', level: 3, title: '日常工作开展情况', visible: true, number: '2.', children: [] },
         ]
       },
       {
-        id: 'n2_2', level: 2, title: '取得成效', visible: true, children: [
-          { id: 'n2_2_1', level: 3, title: '经济效益', visible: true, children: [], references: [
+        id: 'n2_2', level: 2, title: '取得成效', visible: true, number: '（二）', children: [
+          { id: 'n2_2_1', level: 3, title: '经济效益', visible: true, number: '1.', children: [], references: [
             { source_type: 'knowledge', label: '知识库', name: '全部' },
             { source_type: 'recommend', label: '智能推荐', name: '武义县人民政府关于印发《武义县"绿水青山就是金山银山...' },
           ] },
-          { id: 'n2_2_2', level: 3, title: '社会效益', visible: true, children: [] },
+          { id: 'n2_2_2', level: 3, title: '社会效益', visible: true, number: '2.', children: [] },
         ]
       },
     ]
   },
   {
-    id: 'n3', level: 1, title: '存在问题', visible: true, children: [
-      { id: 'n3_1', level: 2, title: '突出问题', visible: true, children: [] },
-      { id: 'n3_2', level: 2, title: '原因分析', visible: true, children: [] },
+    id: 'n3', level: 1, title: '存在问题', visible: true, number: '三、', children: [
+      { id: 'n3_1', level: 2, title: '突出问题', visible: true, number: '（一）', children: [] },
+      { id: 'n3_2', level: 2, title: '原因分析', visible: true, number: '（二）', children: [] },
     ]
   },
   {
-    id: 'n4', level: 1, title: '下一步工作打算', visible: true, children: [
-      { id: 'n4_1', level: 2, title: '工作目标', visible: true, children: [] },
+    id: 'n4', level: 1, title: '下一步工作打算', visible: true, number: '四、', children: [
+      { id: 'n4_1', level: 2, title: '工作目标', visible: true, number: '（一）', children: [] },
       {
-        id: 'n4_2', level: 2, title: '具体措施', visible: true, children: [
+        id: 'n4_2', level: 2, title: '具体措施', visible: true, number: '（二）', children: [
           {
-            id: 'n4_2_1', level: 3, title: '短期措施', visible: true, children: [
-              { id: 'n4_2_1_1', level: 4, title: '立行立改事项', visible: true, children: [] },
-              { id: 'n4_2_1_2', level: 4, title: '限期整改事项', visible: true, children: [] },
+            id: 'n4_2_1', level: 3, title: '短期措施', visible: true, number: '1.', children: [
+              { id: 'n4_2_1_1', level: 4, title: '立行立改事项', visible: true, number: '（1）', children: [] },
+              { id: 'n4_2_1_2', level: 4, title: '限期整改事项', visible: true, number: '（2）', children: [] },
             ]
           },
-          { id: 'n4_2_2', level: 3, title: '长期措施', visible: true, children: [] },
+          { id: 'n4_2_2', level: 3, title: '长期措施', visible: true, number: '2.', children: [] },
         ]
       },
     ]
@@ -81,6 +81,7 @@ const selectedNodeData = computed(() =>
 function handleNodeClick(node: OutlineNode) {
   selectedNodeId.value = node.id
   addingRef.value = false
+  editingReq.value = false
 }
 
 // --- Add reference form ---
@@ -112,6 +113,40 @@ function cancelAddRef() {
 function removeRef(index: number) {
   if (!selectedNodeId.value) return
   editorRef.value?.removeReference(selectedNodeId.value, index)
+}
+
+// --- Requirements ---
+const editingReq = ref(false)
+const reqDraft = ref('')
+
+const selectedNodeIsLeaf = computed(() =>
+  selectedNodeData.value ? selectedNodeData.value.children.length === 0 : false
+)
+
+function startEditReq() {
+  reqDraft.value = selectedNodeData.value?.requirements ?? ''
+  editingReq.value = true
+}
+
+function confirmSetReq() {
+  if (!selectedNodeId.value) return
+  const text = reqDraft.value.trim()
+  if (text) {
+    editorRef.value?.setRequirements(selectedNodeId.value, text)
+  } else {
+    editorRef.value?.clearRequirements(selectedNodeId.value)
+  }
+  editingReq.value = false
+}
+
+function cancelEditReq() {
+  editingReq.value = false
+}
+
+function clearReq() {
+  if (!selectedNodeId.value) return
+  editorRef.value?.clearRequirements(selectedNodeId.value)
+  editingReq.value = false
 }
 </script>
 
@@ -166,6 +201,35 @@ function removeRef(index: number) {
         </div>
 
         <button v-else class="app-panel__add-btn" @click="addingRef = true">+ 添加内容参考</button>
+
+        <!-- 生成要求区块（仅叶子节点） -->
+        <template v-if="selectedNodeIsLeaf">
+          <div class="app-panel__section-title">生成要求</div>
+
+          <template v-if="!editingReq && selectedNodeData.requirements">
+            <div class="app-panel__req-text">{{ selectedNodeData.requirements }}</div>
+            <div class="app-panel__req-actions">
+              <button class="app-panel__btn" @click="startEditReq">修改</button>
+              <button class="app-panel__btn app-panel__btn--danger" @click="clearReq">删除</button>
+            </div>
+          </template>
+
+          <template v-else-if="editingReq">
+            <textarea
+              v-model="reqDraft"
+              class="app-panel__req-input"
+              placeholder="输入生成要求..."
+              rows="4"
+              @keydown.escape="cancelEditReq"
+            />
+            <div class="app-panel__form-actions">
+              <button class="app-panel__btn app-panel__btn--primary" @click="confirmSetReq">确认</button>
+              <button class="app-panel__btn" @click="cancelEditReq">取消</button>
+            </div>
+          </template>
+
+          <button v-else class="app-panel__add-btn" @click="startEditReq">+ 设定生成要求</button>
+        </template>
       </template>
     </div>
   </div>
@@ -394,5 +458,63 @@ function removeRef(index: number) {
 .app-panel__btn--primary:hover {
   background: #d06820;
   border-color: #d06820;
+}
+
+.app-panel__section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  margin: 20px 0 10px;
+  padding-top: 16px;
+  border-top: 1px solid #eaedf0;
+}
+
+.app-panel__req-text {
+  font-size: 13px;
+  color: #1a1a1a;
+  line-height: 1.6;
+  background: #f8f9fb;
+  border: 1px solid #eaedf0;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 8px;
+}
+
+.app-panel__req-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.app-panel__req-input {
+  width: 100%;
+  font-size: 13px;
+  font-family: inherit;
+  border: 1px solid #e0e0e0;
+  padding: 8px 10px;
+  outline: none;
+  resize: vertical;
+  line-height: 1.6;
+  color: #1a1a1a;
+  background: #fff;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+  margin-bottom: 8px;
+}
+
+.app-panel__req-input:focus {
+  border-color: #e8792b;
+}
+
+.app-panel__btn--danger {
+  border-color: #ffccc7;
+  color: #ff4d4f;
+  background: #fff1f0;
+}
+
+.app-panel__btn--danger:hover {
+  background: #ffccc7;
 }
 </style>

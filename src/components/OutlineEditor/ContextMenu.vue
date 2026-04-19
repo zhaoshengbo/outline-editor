@@ -115,7 +115,7 @@ function handleClick(e: MouseEvent) {
 
 <style>
 .context-menu {
-  position: fixed;
+  position: absolute;
   z-index: 1000;
   display: flex;
   align-items: center;
